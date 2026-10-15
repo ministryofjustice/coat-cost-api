@@ -24,6 +24,8 @@ jobs:
         run: uv sync
 
       - name: Start app
+        env:
+          API_KEY: smoke-test-key-not-a-real-secret-key
         run: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
 
       - name: Wait for app to be ready
