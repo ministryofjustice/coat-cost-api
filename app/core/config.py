@@ -1,3 +1,4 @@
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings
 
 
@@ -8,6 +9,7 @@ class Settings(BaseSettings):
     athena_workgroup: str = "primary"
 
     app_env: str = "development"
+    api_key: SecretStr = Field(min_length=32)
 
     @property
     def athena_output_location(self) -> str:
@@ -19,4 +21,5 @@ class Settings(BaseSettings):
         env_file = ".env"
 
 
-settings = Settings()
+# api_key is loaded from the environment by pydantic-settings
+settings = Settings()  # type: ignore[call-arg]
