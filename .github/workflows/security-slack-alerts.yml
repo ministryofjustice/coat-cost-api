@@ -1,0 +1,84 @@
+# Posts new high and critical code-scanning and Dependabot alerts to
+# COAT Notifications. Actions cannot subscribe to those events, so this
+# runs after Snyk and once a day. Alerts created before the previous
+# successful run are skipped.
+#
+# Secret: COAT_NOTIFICATIONS_SLACK_WEBHOOK
+# Slack variables: repository, severity, source, vulnerability, details, url
+name: Security Slack alerts
+
+on:
+  workflow_run:
+    workflows: ["Snyk"]
+    types: [completed]
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  notify:
+    name: Notify COAT Notifications
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure'
+    permissions:
+      actions: read
+      security-events: read
+    steps:
+      - name: Post new alerts
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.COAT_NOTIFICATIONS_SLACK_WEBHOOK }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          : "${SLACK_WEBHOOK_URL:?COAT_NOTIFICATIONS_SLACK_WEBHOOK is not set}"
+
+          cutoff=$(gh api "repos/${REPO}/actions/workflows/security-slack-alerts.yml/runs?status=success&per_page=1" \
+            --jq '.workflow_runs[0].created_at // empty')
+          cutoff="${cutoff:-$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)}"
+          echo "Posting alerts created after ${cutoff}"
+
+          sent=0
+          notify() {
+            local kind="$1" fatal="$2" alerts
+            if ! alerts=$(gh api --paginate "repos/${REPO}/${kind}?state=open&per_page=100"); then
+              echo "Could not list ${kind}"
+              [ "${fatal}" = yes ] && exit 1
+              return 0
+            fi
+            while IFS= read -r payload; do
+              [ -z "${payload}" ] && continue
+              curl --fail-with-body --silent --show-error \
+                --header "Content-type: application/json" \
+                --data "${payload}" \
+                "${SLACK_WEBHOOK_URL}"
+              echo
+              sent=$((sent + 1))
+            done < <(jq -c --arg cutoff "${cutoff}" --arg repository "${REPO}" '
+              .[]
+              | select(.created_at > $cutoff)
+              | select((.rule.security_severity_level // .security_advisory.severity) as $severity | $severity == "high" or $severity == "critical")
+              | {
+                  repository: $repository,
+                  severity: (.rule.security_severity_level // .security_advisory.severity),
+                  source: (.tool.name // "Dependabot"),
+                  vulnerability: (.rule.id // (.dependency.package.name + (if .security_advisory.ghsa_id then " (" + .security_advisory.ghsa_id + ")" else "" end))),
+                  details: ([
+                    (.rule.description // .security_advisory.summary),
+                    .most_recent_instance.message.text,
+                    (if .most_recent_instance.location.path then
+                      "Location: " + .most_recent_instance.location.path
+                      + (if .most_recent_instance.location.start_line then ":" + (.most_recent_instance.location.start_line | tostring) else "" end)
+                    else empty end),
+                    (if .dependency.manifest_path then "Manifest: " + .dependency.manifest_path else empty end)
+                  ] | map(select(. != null and . != "")) | join("\n")),
+                  url: .html_url
+                }
+            ' <<<"${alerts}")
+          }
+
+          notify code-scanning/alerts yes
+          notify dependabot/alerts no
+          echo "Posted ${sent} alert(s)"
