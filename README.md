@@ -128,6 +128,19 @@ app/
 └── docs/                      # Design approach documentation 
 ```
 
+## Snyk alerts
+
+The Snyk workflow scans the container image and the source on pull requests, pushes to `main`, every Monday at 00:00 UTC, and when someone runs it manually. A job fails when it finds a high or critical issue. The container job fails only when that issue can be upgraded.
+
+A failed Snyk Container or Snyk Code job still fails a pull request, but it posts to #coat-notifications only for a push to `main` or the Monday run. The Slack workflow uses two variables:
+
+| Variable | Value |
+| --- | --- |
+| `repository` | `ministryofjustice/coat-fastapi-poc` |
+| `run_id` | Link to the Actions run, used by **Open Github Action** |
+
+The trigger URL is the `COAT_NOTIFICATIONS_SLACK_WEBHOOK` repository secret.
+
 ## Documentation
 
 - [API Authentication approach](docs/api-authentication.md)
