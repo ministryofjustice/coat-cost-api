@@ -1,4 +1,4 @@
-# COAT FastAPI POC
+# COAT COST API - POC
 
 Proof of Concept API for retrieving cloud cost data.
 
