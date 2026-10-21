@@ -1,5 +1,5 @@
-IMAGE_NAME := coat-fastapi-poc
-CONTAINER_NAME := coat-fastapi-poc
+IMAGE_NAME := coat-cost-api
+CONTAINER_NAME := coat-cost-api
 AWS_PROFILE := modernisation-platform-developer
 
 build:
