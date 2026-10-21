@@ -1,6 +1,6 @@
 # Tests
 
-Test suite for `coat-fastapi-poc`
+Test suite for `coat-cost-api`
 
 > Runs from the project root (`testpaths` is configured in `pyproject.toml`, so no need to `cd` into `tests/`)
 
