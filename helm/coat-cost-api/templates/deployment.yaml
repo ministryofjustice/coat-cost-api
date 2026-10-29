@@ -45,6 +45,11 @@ spec:
             - name: {{ $name }}
               value: {{ $value | quote }}
             {{- end }}
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "coat-cost-api.fullname" . }}
+                  key: API_KEY
           ports:
             - name: http
               containerPort: {{ .Values.service.targetPort }}
