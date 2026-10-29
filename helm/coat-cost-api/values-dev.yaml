@@ -1,0 +1,5 @@
+serviceAccount:
+  name: coat-cost-api-dev
+
+env:
+  APP_ENV: "development"
