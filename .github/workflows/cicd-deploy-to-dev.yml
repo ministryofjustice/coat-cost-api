@@ -44,4 +44,37 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
 
-    # Will add deploy to job after creating Helm chart
+  deploy-to-dev:
+    needs: build-push
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      KUBE_CLUSTER: ${{ secrets.KUBE_CLUSTER }}
+      KUBE_NAMESPACE: ${{ secrets.DEV_KUBE_NAMESPACE }}
+      KUBE_CERT: ${{ secrets.DEV_KUBE_CERT }}
+      KUBE_TOKEN: ${{ secrets.DEV_KUBE_TOKEN }}
+      API_KEY: ${{ secrets.DEV_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to the cluster
+        run: |
+          echo "${KUBE_CERT}" > ca.crt
+          kubectl config set-cluster ${KUBE_CLUSTER} --certificate-authority=./ca.crt --server=https://${KUBE_CLUSTER}
+          kubectl config set-credentials deploy-user --token=${KUBE_TOKEN}
+          kubectl config set-context ${KUBE_CLUSTER} --cluster=${KUBE_CLUSTER} --user=deploy-user --namespace=${KUBE_NAMESPACE}
+          kubectl config use-context ${KUBE_CLUSTER}
+          kubectl version --client
+          helm version
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade coat-cost-api helm/coat-cost-api \
+            --install \
+            --wait \
+            --timeout 5m \
+            --namespace ${KUBE_NAMESPACE} \
+            --values helm/coat-cost-api/values-dev.yaml \
+            --set image.repository=${ECR_REGISTRY}/${ECR_REPOSITORY} \
+            --set image.tag=${IMAGE_TAG} \
+            --set apiKey="${API_KEY}"
