@@ -1,0 +1,74 @@
+name: "♻️ Deploy to Production Namespace"
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"  # Push events to matching v*, i.e. v1.0, v20.15.10
+
+env:
+  # A majority of the secrets generated here come from the cloud-platform-environments repository.
+  IMAGE_TAG: ${{ github.sha }}
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY_URL }}  
+  ECR_REPOSITORY: ${{ vars.PROD_ECR_REPOSITORY }}
+
+jobs:
+  build-push:
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t coat-cost-api-prod:$IMAGE_TAG .
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+        with:
+          role-to-assume: ${{ secrets.PROD_ECR_ROLE_TO_ASSUME }}  
+          aws-region: ${{ vars.PROD_ECR_REGION }}       
+
+      - name: Log in to ECR
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2.0.1
+      - name: Push image
+        run: | 
+          docker tag coat-cost-api-prod:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+
+  deploy-to-prod:
+    needs: build-push
+    runs-on: ubuntu-latest
+    env:
+      KUBE_CLUSTER: ${{ secrets.KUBE_CLUSTER }}
+      KUBE_NAMESPACE: ${{ secrets.PROD_KUBE_NAMESPACE }}
+      KUBE_CERT: ${{ secrets.PROD_KUBE_CERT }}
+      KUBE_TOKEN: ${{ secrets.PROD_KUBE_TOKEN }}
+      API_KEY: ${{ secrets.PROD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to the cluster
+        run: |
+          echo "${KUBE_CERT}" > ca.crt
+          kubectl config set-cluster ${KUBE_CLUSTER} --certificate-authority=./ca.crt --server=https://${KUBE_CLUSTER}
+          kubectl config set-credentials deploy-user --token=${KUBE_TOKEN}
+          kubectl config set-context ${KUBE_CLUSTER} --cluster=${KUBE_CLUSTER} --user=deploy-user --namespace=${KUBE_NAMESPACE}
+          kubectl config use-context ${KUBE_CLUSTER}
+          kubectl version --client
+          helm version
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade coat-cost-api helm/coat-cost-api \
+            --install \
+            --wait \
+            --timeout 5m \
+            --namespace ${KUBE_NAMESPACE} \
+            --values helm/coat-cost-api/values-prod.yaml \
+            --set image.repository=${ECR_REGISTRY}/${ECR_REPOSITORY} \
+            --set image.tag=${IMAGE_TAG} \
+            --set apiKey="${API_KEY}"

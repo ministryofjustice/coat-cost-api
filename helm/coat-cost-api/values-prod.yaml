@@ -1,0 +1,5 @@
+serviceAccount:
+  name: coat-cost-api-prod
+
+env:
+  APP_ENV: "production"
