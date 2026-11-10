@@ -36,7 +36,7 @@ Follow the reference model.
 - `/health` and `/status` are left unauthenticated so Kubernetes probes can reach them.
 - Any secrets are injected with Kubernetes `secretKeyRef`.
 
-![Authentication diagram](auth-flow-diagram.png)
+![Authentication diagram](diagrams/auth-flow-diagram.png)
 
 ### MVP / POC
 
