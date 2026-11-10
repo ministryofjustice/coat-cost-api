@@ -144,3 +144,5 @@ The trigger URL is the `COAT_NOTIFICATIONS_SLACK_WEBHOOK` repository secret.
 ## Documentation
 
 - [API Authentication approach](docs/api-authentication.md)
+- [How to create Cloud Platform Namespaces](docs/create-cloud-platform-namespace.md)
+- [How to deploy to the Cloud Platform](docs/deploying-to-cloud-platform.md)
