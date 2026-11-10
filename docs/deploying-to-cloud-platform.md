@@ -26,7 +26,7 @@ The API runs in two Cloud Platform namespaces:
 | Dev | `coat-cost-api-dev` | Automatically on every merge to `main` |
 | Prod | `coat-cost-api-prod` | When a `v*` version tag is pushed (for example `v0.1.0`) |
 
-![How the COAT Cost API gets from GitHub to Cloud Platform](images/deployment-flow.png)
+![How the COAT Cost API gets from GitHub to Cloud Platform](diagrams/deployment-flow.png)
 
 There are two halves to the setup:
 
