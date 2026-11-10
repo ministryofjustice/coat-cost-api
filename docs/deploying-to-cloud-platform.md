@@ -2,7 +2,7 @@
 
 This doc explains how the COAT Cost API is deployed to the MOJ Cloud Platform, how to release it, and how to check a deployment is working.
 
-It follows on from [Creating the Cloud Platform namespace](create-cloud-platform-namespaces.md)
+It follows on from [Creating the Cloud Platform namespace](create-cloud-platform-namespace.md)
 
 ## Contents
 
