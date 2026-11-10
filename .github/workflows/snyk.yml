@@ -21,6 +21,11 @@ jobs:
   snyk-container:
     name: Snyk Container
     runs-on: ubuntu-latest
+    env:
+      # Stable tag and project name. Tagging with the commit SHA makes Snyk
+      # emit a new code scanning configuration every run, so pull requests
+      # cannot be compared with main.
+      IMAGE_NAME: coat-cost-api
     permissions:
       actions: read
       contents: read
@@ -30,7 +35,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Build image
-        run: docker build --tag "${{ github.sha }}" .
+        run: docker build --tag "${IMAGE_NAME}:scan" .
 
       - name: Setup Snyk CLI
         uses: snyk/actions/setup@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
@@ -38,7 +43,7 @@ jobs:
       - name: Scan container image
         id: scan
         continue-on-error: true
-        run: snyk container test "${{ github.sha }}" --file=Dockerfile --severity-threshold=high --fail-on=upgradable --sarif-file-output=snyk.sarif
+        run: snyk container test "${IMAGE_NAME}:scan" --file=Dockerfile --severity-threshold=high --fail-on=upgradable --project-name="${IMAGE_NAME}" --sarif-file-output=snyk.sarif
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
