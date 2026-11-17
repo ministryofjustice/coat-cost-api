@@ -1,4 +1,5 @@
 import asyncio
+from functools import lru_cache
 from typing import Any
 
 import aioboto3  # type: ignore[import-untyped]
@@ -83,3 +84,9 @@ class AthenaService:
     ) -> list[dict[str, Any]]:
         query, execution_params = build_daily_cost_query(params)
         return await self.run_query(query, execution_params)
+
+
+# Caching AthenaService to share across requests
+@lru_cache
+def get_athena_service() -> AthenaService:
+    return AthenaService()
