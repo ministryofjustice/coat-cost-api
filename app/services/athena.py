@@ -13,7 +13,6 @@ from app.services.query_builder import build_daily_cost_query
 class AthenaService:
     def __init__(self) -> None:
         self.session = aioboto3.Session()
-        self.region_name = settings.aws_region
         self.database = settings.athena_database
         self.workgroup = settings.athena_workgroup
         self.output_location = settings.athena_output_location
@@ -71,13 +70,13 @@ class AthenaService:
             return self._ap_session, self._ap_output_location
 
     async def start_query(
-        self, client: Any, query: str, execution_params: list[str]
+        self, client: Any, query: str, execution_params: list[str], output_location: str
     ) -> str:
         response = await client.start_query_execution(
             ExecutionParameters=execution_params,
             QueryString=query,
             QueryExecutionContext={"Database": self.database},
-            ResultConfiguration={"OutputLocation": self.output_location},
+            ResultConfiguration={"OutputLocation": output_location},
             WorkGroup=self.workgroup,
         )
         return str(response["QueryExecutionId"])
@@ -125,10 +124,13 @@ class AthenaService:
     async def run_query(
         self, query: str, execution_params: list[str]
     ) -> list[dict[str, Any]]:
-        async with self.session.client(
-            "athena", region_name=self.region_name
+        session, output_location = await self._get_session()
+        async with session.client(
+            "athena", region_name=settings.athena_client_region
         ) as client:
-            query_execution_id = await self.start_query(client, query, execution_params)
+            query_execution_id = await self.start_query(
+                client, query, execution_params, output_location
+            )
             await self.wait_for_query(client, query_execution_id)
             return await self.get_results(client, query_execution_id)
 
